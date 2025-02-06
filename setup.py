@@ -11,12 +11,11 @@ setup(
 		"custom_logger @ git+https://github.com/jebin2/custom_logger",
 		"ffmpeg"
 	],
-	author="Your Name",
-	author_email="your.email@example.com",
+	author="Jebin Einstein",
 	description="A tool for uploading files and interacting with Google's Gemini API.",
 	long_description=open("README.md").read(),
 	long_description_content_type="text/markdown",
-	url="https://github.com/yourusername/gemini_uploader",  # Your repo URL
+	url="https://github.com/jebin2/gemiwrap",  # Your repo URL
 	classifiers=[
 		"Programming Language :: Python :: 3",
 		"License :: OSI Approved :: MIT License",  # Choose a license
