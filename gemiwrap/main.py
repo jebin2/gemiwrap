@@ -92,7 +92,7 @@ class GeminiWrapper:
 
 	def _validate_video_tokens(self, video_path):
 		video_token_per_second = 263
-		model_info = genai.get_model(self._model_name)
+		model_info = genai.get_model(f'models/{self._model_name}')
 		total_video_token = (video_token_per_second * video_duration(video_path))
 		logger_config.info(f"Video Token :: {total_video_token}")
 		logger_config.info(f"Accepted Token :: {model_info.input_token_limit}")
