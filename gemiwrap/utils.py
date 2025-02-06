@@ -7,7 +7,6 @@ def load_dotenv_if_exists():
 	"""Loads environment variables from a .env file if it exists."""
 	if os.path.exists(".env"):
 		load_dotenv()
-		os.environ["TEMP_OUTPUT"] = os.getenv("TEMP_OUTPUT", "tempOutput")
 		return True
 	return False
 

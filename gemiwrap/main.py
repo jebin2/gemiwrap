@@ -47,18 +47,21 @@ class GeminiWrapper:
 
 	def _set_current_key(self):
 		keys = os.getenv("GEMINI_API_KEY", "").split(",")
+		keys = [key.strip() for key in keys if key.strip()]
 		
-		if not keys or not keys[0].strip():
+		if not keys:
 			raise ValueError("No Gemini API keys available")
 
+		# Rotate keys more efficiently
 		for key in keys:
 			if key not in self.used_keys:
-				self.current_key = key.strip()
-				self.used_keys.add(self.current_key)
+				self.current_key = key
+				self.used_keys.add(key)
 				return
 
+		# Reset if all keys used
 		self.used_keys.clear()
-		self.current_key = keys[0].strip()
+		self.current_key = keys[0]
 		self.used_keys.add(self.current_key)
 
 	def _get_mime_type(self, file):
@@ -87,7 +90,7 @@ class GeminiWrapper:
 
 		logger_config.success("...all files ready")
 
-	def _token_validator(self, video_path):
+	def _validate_video_tokens(self, video_path):
 		video_token_per_second = 263
 		model_info = genai.get_model(self._model_name)
 		total_video_token = (video_token_per_second * video_duration(video_path))

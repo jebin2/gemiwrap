@@ -59,7 +59,7 @@ def compress_video(input_path, target_size_mb=400, output_path=None, height=480)
 		# Generate output path if not provided
 		if output_path is None:
 			_, ext = os.path.splitext(input_path)
-			output_path = f"{os.environ["TEMP_OUTPUT"]}/{generate_random_string()}_compress_video{ext}"
+			output_path = f'{os.getenv("TEMP_OUTPUT", "tempOutput")}/{generate_random_string()}_compress_video{ext}'
 			logger_config.debug(f"Generated output path: {output_path}")
 		
 		# Set up FFmpeg stream
