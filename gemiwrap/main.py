@@ -149,7 +149,7 @@ class GeminiWrapper:
 				logger_config.debug(f"Google AI studio response: {response.text}")
 				index += 1
 
-				if not file or len(file_paths) == index:
+				if not file or index >= len(file_paths):
 					break
 
 			except ResourceExhausted:
