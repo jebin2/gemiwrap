@@ -123,7 +123,7 @@ class GeminiWrapper:
 					)
 
 				if not chat_session or len(file_paths) > 1:
-					logger_config.info("Starting a new chat session due to exceed limit")
+					logger_config.info("Starting a new chat session.")
 					self.delete_file_paths()
 					self.history.clear()
 					chat_session = self.model.start_chat(history=self.history)
