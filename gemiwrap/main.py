@@ -46,7 +46,7 @@ class GeminiWrapper:
 			raise
 
 	def _set_current_key(self):
-		keys = os.getenv("GEMINI_API_KEY", "").split(",")
+		keys = os.getenv("GEMINI_API_KEYS", "").split(",")
 		keys = [key.strip() for key in keys if key.strip()]
 		
 		if not keys:
