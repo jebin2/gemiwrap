@@ -1,8 +1,7 @@
 from setuptools import setup, find_packages
 
 setup(
-	name="gemini_uploader",
-	version="0.1.0",
+	name="gemini_wrapper",
 	packages=find_packages(exclude=["tests*"]),
 	install_requires=[
 		"google-generativeai",
