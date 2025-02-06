@@ -19,4 +19,7 @@ def video_duration(file_path):
 	from pymediainfo import MediaInfo
 	media_info = MediaInfo.parse(file_path)
 	for track in media_info.tracks:
-		return track.duration / 1000
+		if track.track_type == "Video":
+			return track.duration / 1000
+
+	return 0
