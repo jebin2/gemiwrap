@@ -5,7 +5,7 @@ setup(
 	packages=find_packages(exclude=["tests*"]),
 	install_requires=[
 		"google-generativeai",
-		"MediaInfo",
+		"pymediainfo",
 		"python-dotenv",
 		"custom_logger @ git+https://github.com/jebin2/custom_logger.git",
 		"ffmpeg"

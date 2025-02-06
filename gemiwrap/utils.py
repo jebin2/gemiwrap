@@ -16,7 +16,7 @@ def generate_random_string(length=10):
     return random_string
 
 def video_duration(file_path):
-	import MediaInfo
+	from pymediainfo import MediaInfo
 	media_info = MediaInfo.parse(file_path)
 	for track in media_info.tracks:
 		return track.duration / 1000

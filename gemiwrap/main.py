@@ -68,7 +68,7 @@ class GeminiWrapper:
 		return mimetypes.guess_type(file)[0] or "application/octet-stream"
 
 	def _upload_to_gemini(self, path):
-		file = genai.upload_file(path, mime_type=self._get_mime_type())
+		file = genai.upload_file(path, mime_type=self._get_mime_type(path))
 		logger_config.debug(f"Uploaded file '{file.display_name}' as: {file.uri}")
 		return file
 
