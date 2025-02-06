@@ -124,8 +124,9 @@ class GeminiWrapper:
 
 				if not chat_session or len(file_paths) > 1:
 					logger_config.info("Starting a new chat session.")
-					self.delete_file_paths()
-					self.history.clear()
+					if len(file_paths) > 1:
+						self.delete_file_paths()
+						self.history.clear()
 					chat_session = self.model.start_chat(history=self.history)
 
 				text = user_prompt
@@ -145,6 +146,7 @@ class GeminiWrapper:
 					self.history[-1]["parts"].append(uploaded_file)
 
 				response = chat_session.send_message(content=self.history[-1])
+				self.history[-1]["parts"][0] = text
 				self.history.append({"role": "model", "parts": [response.text]})
 				logger_config.debug(f"Google AI studio response: {response.text}")
 				index += 1
