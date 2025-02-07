@@ -114,6 +114,7 @@ class GeminiWrapper:
 
 		chat_session = None
 		index = 0
+		model_responses = []
 		while True:
 			file = file_paths[index]
 			try:
@@ -151,6 +152,7 @@ class GeminiWrapper:
 				response = chat_session.send_message(content=self.history[-1])
 				self.history[-1]["parts"][0] = text
 				self.history.append({"role": "model", "parts": [response.text]})
+				model_responses.append(response.text)
 				logger_config.debug(f"Google AI studio response: {response.text}")
 				index += 1
 
@@ -163,7 +165,7 @@ class GeminiWrapper:
 				chat_session = None
 				self._initialize_api()
 
-		return response.text
+		return model_responses
 
 	def get_history(self):
 		return self.history
