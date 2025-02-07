@@ -41,6 +41,8 @@ class GeminiWrapper:
 				generation_config=self.generation_config,
 				system_instruction=self.system_instruction,
 			)
+			logger_config.debug(f"system_instruction:: {self.system_instruction}")
+			logger_config.debug(f"history:: {self.history}")
 			self.chat_session = None
 		except Exception as e:
 			logger_config.error(f"API initialization failed: {e}")
@@ -104,8 +106,6 @@ class GeminiWrapper:
 		return True
 
 	def send_message(self, user_prompt="", file_path=None):
-		logger_config.debug(f"system_instruction:: {self.system_instruction}")
-		logger_config.debug(f"history:: {self.history}")
 		if not user_prompt:
 			user_prompt = ""
 
