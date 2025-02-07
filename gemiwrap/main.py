@@ -41,6 +41,7 @@ class GeminiWrapper:
 				generation_config=self.generation_config,
 				system_instruction=self.system_instruction,
 			)
+			self.chat_session = None
 		except Exception as e:
 			logger_config.error(f"API initialization failed: {e}")
 			raise
@@ -114,7 +115,6 @@ class GeminiWrapper:
 			from . import split_video
 			file_paths = split_video.split(file_path)
 
-		chat_session = None
 		index = 0
 		model_responses = []
 		while True:
@@ -128,12 +128,12 @@ class GeminiWrapper:
 						height=720
 					)
 
-				if not chat_session or len(file_paths) > 1:
+				if not self.chat_session or len(file_paths) > 1:
 					logger_config.info("Starting a new chat session.")
 					if len(file_paths) > 1:
 						self.delete_file_paths()
 						self.history.clear()
-					chat_session = self.model.start_chat(history=self.history)
+					self.chat_session = self.model.start_chat(history=self.history)
 
 				text = user_prompt
 				if len(file_paths) > 1:
@@ -151,7 +151,7 @@ class GeminiWrapper:
 					self._wait_for_files_active([uploaded_file])
 					self.history[-1]["parts"].append(uploaded_file)
 
-				response = chat_session.send_message(content=self.history[-1])
+				response = self.chat_session.send_message(content=self.history[-1])
 				self.history[-1]["parts"][0] = text
 				self.history.append({"role": "model", "parts": [response.text]})
 				model_responses.append(response.text)
@@ -164,7 +164,6 @@ class GeminiWrapper:
 			except ResourceExhausted:
 				logger_config.warning("Quota exceeded, switching API key...")
 				del self.history[-1:]
-				chat_session = None
 				self._initialize_api()
 
 		return model_responses
