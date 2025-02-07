@@ -103,6 +103,9 @@ class GeminiWrapper:
 		return True
 
 	def send_message(self, user_prompt="", file_path=None):
+		if not user_prompt:
+			user_prompt = ""
+
 		file_paths = [file_path] if file_path else [None]
 
 		if file_path and not self._validate_video_tokens(file_path):
