@@ -55,14 +55,12 @@ class GeminiWrapper:
 		if not keys:
 			raise ValueError("No Gemini API keys available")
 
-		# Rotate keys more efficiently
 		for key in keys:
 			if key not in self.used_keys:
 				self.current_key = key
 				self.used_keys.add(key)
 				return
 
-		# Reset if all keys used
 		self.used_keys.clear()
 		self.current_key = keys[0]
 		self.used_keys.add(self.current_key)
