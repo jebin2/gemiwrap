@@ -97,18 +97,3 @@ def compress_video(input_path, target_size_mb=400, output_path=None, height=480)
 	except Exception as e:
 		logger_config.error(f"Unexpected error occurred: {str(e)}", exc_info=True)
 		raise
-
-# Example usage
-if __name__ == "__main__":
-	try:
-		input_video = "media/movie_review/Blame 2017.mkv"
-		logger_config.info(f"Starting compression process for: {input_video}")
-		
-		compressed_video = compress_video(
-			input_video,
-			target_size_mb=400,
-			height=480
-		)
-		logger_config.info(f"Video compression successful. Output file: {compressed_video}")
-	except Exception as e:
-		logger_config.error(f"Compression process failed: {str(e)}", exc_info=True)

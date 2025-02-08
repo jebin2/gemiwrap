@@ -2,9 +2,9 @@ import os
 from dotenv import load_dotenv
 import string
 import secrets
+import ffmpeg
 
 def load_dotenv_if_exists():
-	"""Loads environment variables from a .env file if it exists."""
 	if os.path.exists(".env"):
 		load_dotenv()
 		return True
@@ -16,10 +16,6 @@ def generate_random_string(length=10):
     return random_string
 
 def video_duration(file_path):
-	from pymediainfo import MediaInfo
-	media_info = MediaInfo.parse(file_path)
-	for track in media_info.tracks:
-		if track.track_type == "Video":
-			return int(float(track.duration)) // 1000
-
-	return 0
+	probe = ffmpeg.probe(file_path, v='error', select_streams='v:0', show_entries='format=duration,streams')
+	duration = int(float(probe['format']['duration'])) # seconds
+	return duration
