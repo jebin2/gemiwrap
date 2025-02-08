@@ -16,6 +16,9 @@ def generate_random_string(length=10):
     return random_string
 
 def video_duration(file_path):
+	if not os.path.isfile(file_path):
+		return 0
+
 	probe = ffmpeg.probe(file_path)
 	duration = int(float(probe['format']['duration'])) # seconds
 	return duration
