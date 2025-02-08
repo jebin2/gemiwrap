@@ -8,7 +8,7 @@ setup(
 		"pymediainfo",
 		"python-dotenv",
 		"custom_logger @ git+https://github.com/jebin2/custom_logger.git",
-		"ffmpeg"
+		"ffmpeg-python"
 	],
 	author="Jebin Einstein",
 	description="A tool for uploading files and interacting with Google's Gemini API.",
