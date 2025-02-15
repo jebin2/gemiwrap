@@ -58,7 +58,3 @@ To use API keys, add them to a `.env` file:
 GEMINI_API_KEYS=your_api_key1,your_api_key2
 TEMP_OUTPUT=./temp
 ```
-
-## License
-This project is licensed under the MIT License.
-
