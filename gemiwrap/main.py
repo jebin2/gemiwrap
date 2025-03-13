@@ -174,3 +174,6 @@ class GeminiWrapper:
 
 	def get_history(self):
 		return self.chat.get_history()
+
+	def get_schema(self):
+		return self.schema
