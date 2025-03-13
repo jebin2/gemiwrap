@@ -1,4 +1,4 @@
-from .utils import load_dotenv_if_exists, video_duration
+from .utils import video_duration
 from custom_logger import logger_config
 import os
 from google.api_core.exceptions import ResourceExhausted
@@ -9,8 +9,6 @@ from google.genai import types
 class GeminiWrapper:
 
 	def __init__(self, model_name="gemini-2.0-flash", system_instruction=None, history=None, delete_files=False, tools=None, thinking_config=None, schema=None, response_mime_type="application/json"):
-		load_dotenv_if_exists()
-
 		self._model_name = model_name
 		self.system_instruction = system_instruction
 		self.history = history or []

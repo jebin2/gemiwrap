@@ -1,15 +1,8 @@
 import os
-from dotenv import load_dotenv
 import string
 import secrets
 import ffmpeg
 import mimetypes
-
-def load_dotenv_if_exists():
-	if os.path.exists(".env"):
-		load_dotenv()
-		return True
-	return False
 
 def generate_random_string(length=10):
     characters = string.ascii_letters
