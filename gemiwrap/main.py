@@ -8,12 +8,14 @@ from google.genai import types
 
 class GeminiWrapper:
 
-	def __init__(self, model_name="gemini-2.0-flash", system_instruction=None, history=None, delete_files=False, tools=None, thinking_config=None):
+	def __init__(self, model_name="gemini-2.0-flash", system_instruction=None, history=None, delete_files=False, tools=None, thinking_config=None, schema=None, response_mime_type="application/json"):
 		load_dotenv_if_exists()
 
 		self._model_name = model_name
 		self.system_instruction = system_instruction
 		self.history = history or []
+		self.schema = schema
+		self.response_mime_type = response_mime_type
 		self.tools = tools
 		self.thinking_config = thinking_config
 
@@ -101,14 +103,21 @@ class GeminiWrapper:
 			thinking_config=self.thinking_config
 		)
 
-	def send_message(self, user_prompt="", file_path=None, schema=None, response_mime_type="application/json"):
-		self.schema = schema
-		self.response_mime_type=response_mime_type
+	def send_message(self, user_prompt="", file_path=None, system_instruction=None, schema=None, response_mime_type=None):
 		if not user_prompt:
 			user_prompt = ""
 
 		original_text = user_prompt
 		file_paths = [file_path] if file_path else [None]
+
+		if system_instruction:
+			self.system_instruction = system_instruction
+
+		if schema:
+			self.schema = schema
+
+		if response_mime_type:
+			self.response_mime_type=response_mime_type
 
 		if file_path:
 			split_count = self.__validate_video_tokens(file_path)
