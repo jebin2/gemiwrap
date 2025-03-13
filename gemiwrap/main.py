@@ -8,7 +8,7 @@ from google.genai import types
 
 class GeminiWrapper:
 
-	def __init__(self, model_name="gemini-2.0-flash", system_instruction=None, history=None, delete_files=False, tools=None, thinking_config=None, schema=None, response_mime_type="application/json"):
+	def __init__(self, model_name="gemini-2.0-flash", system_instruction=None, history=None, delete_files=False, tools=None, thinking_config=None):
 		load_dotenv_if_exists()
 
 		self._model_name = model_name
@@ -16,8 +16,6 @@ class GeminiWrapper:
 		self.history = history or []
 		self.tools = tools
 		self.thinking_config = thinking_config
-		self.schema = schema
-		self.response_mime_type=response_mime_type
 
 		self.used_keys = set()
 		self.current_key = None
@@ -103,7 +101,9 @@ class GeminiWrapper:
 			thinking_config=self.thinking_config
 		)
 
-	def send_message(self, user_prompt="", file_path=None):
+	def send_message(self, user_prompt="", file_path=None, schema=None, response_mime_type="application/json"):
+		self.schema = schema
+		self.response_mime_type=response_mime_type
 		if not user_prompt:
 			user_prompt = ""
 
