@@ -16,11 +16,13 @@ def split(video_path, parts=3):
 		if i + 1 == parts:
 			ffmpeg.input(video_path, ss=start_time).output(output_path,
 						acodec='copy',
-						vcodec='copy').run()
+						vcodec='copy',
+                        map_metadata=-1).run()
 		else:
 			ffmpeg.input(video_path, ss=start_time, t=each_dur).output(output_path,
 						acodec='copy',
-						vcodec='copy').run()
+						vcodec='copy',
+                        map_metadata=-1).run()
 
 		all_files.append(output_path)
 		logger_config.success(f'Part {i + 1} :: {output_path}')

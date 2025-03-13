@@ -1,46 +1,38 @@
-import google.generativeai as genai
 from .utils import load_dotenv_if_exists, video_duration
 from custom_logger import logger_config
 import os
-import mimetypes
 from google.api_core.exceptions import ResourceExhausted
 
-class GeminiWrapper:
-	DEFAULT_GENERATION_CONFIG = {
-		"temperature": 1,
-		"top_p": 0.95,
-		"top_k": 40,
-		"max_output_tokens": 8192,
-		"response_schema": None,
-		"response_mime_type": "application/json"
-	}
+from google import genai
+from google.genai import types
 
-	def __init__(self, model_name="gemini-2.0-flash", generation_config=None, system_instruction=None, history=None, delete_files=False):
+class GeminiWrapper:
+
+	def __init__(self, model_name="gemini-2.0-flash", system_instruction=None, history=None, delete_files=False, tools=None, thinking_config=None, schema=None, response_mime_type="application/json"):
 		load_dotenv_if_exists()
 
 		self._model_name = model_name
-		self.generation_config = generation_config or self.DEFAULT_GENERATION_CONFIG
 		self.system_instruction = system_instruction
 		self.history = history or []
+		self.tools = tools
+		self.thinking_config = thinking_config
+		self.schema = schema
+		self.response_mime_type=response_mime_type
 
 		self.used_keys = set()
 		self.current_key = None
 
-		self._initialize_api()
+		self.__initialize_api(self.history)
 
 		if delete_files:
-			self.delete_file_paths()
+			self.__delete_file_paths()
 
-	def _initialize_api(self):
+	def __initialize_api(self, history=None):
 		try:
-			self._set_current_key()
-			genai.configure(api_key=self.current_key)
-			
-			self.model = genai.GenerativeModel(
-				model_name=self._model_name,
-				generation_config=self.generation_config,
-				system_instruction=self.system_instruction,
-			)
+			self.__set_new_current_key()
+			self.client = genai.Client(api_key=self.current_key)
+			self.chat = self.client.chats.create(model=self._model_name, history=history)
+
 			logger_config.debug(f"system_instruction:: {self.system_instruction}")
 			logger_config.debug(f"history:: {self.history}")
 			self.chat_session = None
@@ -48,7 +40,7 @@ class GeminiWrapper:
 			logger_config.error(f"API initialization failed: {e}")
 			raise
 
-	def _set_current_key(self):
+	def __set_new_current_key(self):
 		keys = os.getenv("GEMINI_API_KEYS", "").split(",")
 		keys = [key.strip() for key in keys if key.strip()]
 		
@@ -65,53 +57,64 @@ class GeminiWrapper:
 		self.current_key = keys[0]
 		self.used_keys.add(self.current_key)
 
-	def _get_mime_type(self, file):
-		return mimetypes.guess_type(file)[0] or "application/octet-stream"
-
-	def _upload_to_gemini(self, path):
-		file = genai.upload_file(path, mime_type=self._get_mime_type(path))
+	def __upload_to_gemini(self, path):
+		file = self.client.files.upload(file=path)
 		logger_config.debug(f"Uploaded file '{file.display_name}' as: {file.uri}")
 		return file
 
-	def delete_file_paths(self):
-		for file in genai.list_files():
-			genai.delete_file(file.name)
+	def __delete_file_paths(self):
+		for file in self.client.files.list():
+			self.client.files.delete(name=file.name)
 			logger_config.success(f"Deleted file '{file.name}'")
 
-	def _wait_for_files_active(self, files):
+	def __wait_for_files_active(self, files):
 		logger_config.debug("Waiting for file processing...")
 		for name in (file.name for file in files):
-			file = genai.get_file(name)
+			file = self.client.files.get(name=name)
 			while file.state.name == "PROCESSING":
 				logger_config.debug("", seconds=10)
-				file = genai.get_file(name)
+				file = self.client.files.get(name=name)
 
 			if file.state.name != "ACTIVE":
 				raise Exception(f"File {file.name} failed to process")
 
 		logger_config.success("...all files ready")
 
-	def _validate_video_tokens(self, video_path):
-		video_token_per_second = 263
-		model_info = genai.get_model(f'models/{self._model_name}')
-		total_video_token = (video_token_per_second * video_duration(video_path))
-		logger_config.info(f"Video Token :: {total_video_token}")
-		logger_config.info(f"Accepted Token :: {model_info.input_token_limit}")
-		if total_video_token > model_info.input_token_limit:
-			logger_config.warning(f"Extra Token :: {total_video_token - model_info.input_token_limit}")
-			return False
+	def __validate_video_tokens(self, video_path):
+		split_count = -1
+		duration = video_duration(video_path) // 60
+		# 40 reason a 1M context window can fit slightly less than an hour of video
+		if duration > 40:
+			import math
+			split_count = math.ceil(duration / 40)
 
-		return True
+		return split_count
+
+	def __get_config(self):
+		return types.GenerateContentConfig(
+			system_instruction=self.system_instruction,
+			temperature=1,
+			top_p=0.95,
+			top_k=40,
+			max_output_tokens=8192,
+			response_mime_type=self.response_mime_type,
+			response_schema=self.schema,
+			tools=self.tools,
+			thinking_config=self.thinking_config
+		)
 
 	def send_message(self, user_prompt="", file_path=None):
 		if not user_prompt:
 			user_prompt = ""
 
+		original_text = user_prompt
 		file_paths = [file_path] if file_path else [None]
 
-		if file_path and not self._validate_video_tokens(file_path):
-			from . import split_video
-			file_paths = split_video.split(file_path)
+		if file_path:
+			split_count = self.__validate_video_tokens(file_path)
+			if split_count > -1:
+				from . import split_video
+				file_paths = split_video.split(file_path, parts=split_count)
 
 		index = 0
 		model_responses = []
@@ -126,34 +129,29 @@ class GeminiWrapper:
 						height=720
 					)
 
-				if not self.chat_session or len(file_paths) > 1:
+				if not self.chat or len(file_paths) > 1:
 					logger_config.info("Starting a new chat session.")
+					self.__initialize_api()
 					if len(file_paths) > 1:
-						self.delete_file_paths()
-						self.history.clear()
-					self.chat_session = self.model.start_chat(history=self.history)
+						self.__delete_file_paths()
 
-				text = user_prompt
 				if len(file_paths) > 1:
-					text = f'{user_prompt} Part {index+1} of {len(file_paths)}'
+					user_prompt = f'{original_text} Part {index+1} of {len(file_paths)}'
 
-				logger_config.debug(f"user_prompt: {text}")
-				self.history.append({
-					"role": "user",
-					"parts": [
-						{"text": text}
-					]
-				})
+				logger_config.debug(f"user_prompt: {user_prompt}")
+				uploaded_file = None
 				if file:
-					uploaded_file = self._upload_to_gemini(file)
-					self._wait_for_files_active([uploaded_file])
-					self.history[-1]["parts"].append(uploaded_file)
+					uploaded_file = self.__upload_to_gemini(file)
+					self.__wait_for_files_active([uploaded_file])
 
-				response = self.chat_session.send_message(content=self.history[-1])
-				self.history[-1]["parts"][0] = text
-				self.history.append({"role": "model", "parts": [response.text]})
-				model_responses.append(response.text)
-				logger_config.debug(f"Google AI studio response: {response.text}")
+				response = self.chat.send_message(
+					message=[user_prompt, uploaded_file] if uploaded_file else [user_prompt],
+					config=self.__get_config()
+				)
+				result = response.text
+
+				model_responses.append(result)
+				logger_config.debug(f"Google AI studio response: {result}")
 				index += 1
 
 				if not file or index >= len(file_paths):
@@ -161,10 +159,9 @@ class GeminiWrapper:
 
 			except ResourceExhausted:
 				logger_config.warning("Quota exceeded, switching API key...")
-				del self.history[-1:]
-				self._initialize_api()
+				self.__initialize_api()
 
 		return model_responses
 
 	def get_history(self):
-		return self.history
+		return self.chat.get_history()
