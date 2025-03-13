@@ -1,7 +1,7 @@
 from setuptools import setup, find_packages
 
 setup(
-	name="gemini_wrapper",
+	name="gemiwrap",
 	packages=find_packages(exclude=["tests*"]),
 	install_requires=[
 		"google-genai",
