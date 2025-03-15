@@ -164,9 +164,12 @@ class GeminiWrapper:
 				if not file or index >= len(file_paths):
 					break
 
-			except ResourceExhausted:
-				logger_config.warning("Quota exceeded, switching API key...")
-				self.__initialize_api()
+			except APIError as e:
+				if "RESOURCE_EXHAUSTED" in str(e):
+					logger_config.warning("Quota exceeded, switching API key...")
+					self.__initialize_api()
+				else:
+					raise
 
 		return model_responses
 
