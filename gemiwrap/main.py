@@ -1,7 +1,6 @@
 from .utils import video_duration
 from custom_logger import logger_config
 import os
-from google.api_core.exceptions import ResourceExhausted
 
 from google import genai
 from google.genai import types
@@ -164,7 +163,7 @@ class GeminiWrapper:
 				if not file or index >= len(file_paths):
 					break
 
-			except APIError as e:
+			except Exception as e:
 				if "RESOURCE_EXHAUSTED" in str(e):
 					logger_config.warning("Quota exceeded, switching API key...")
 					self.__initialize_api()
