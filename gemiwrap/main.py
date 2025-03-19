@@ -1,7 +1,7 @@
 from .utils import video_duration
 from custom_logger import logger_config
 import os
-
+import concurrent.futures
 from google import genai
 from google.genai import types
 
@@ -100,6 +100,15 @@ class GeminiWrapper:
 			thinking_config=self.thinking_config
 		)
 
+	def __send_message_with_timeout(self, user_prompt, config, timeout=300):
+		with concurrent.futures.ThreadPoolExecutor() as executor:
+			future = executor.submit(lambda: self.chat.send_message(user_prompt, config))
+			try:
+				return future.result(timeout=timeout)  # Wait for result with timeout
+			except concurrent.futures.TimeoutError:
+				logger_config.error("Request timed out")
+				return None
+
 	def send_message(self, user_prompt="", file_path=None, system_instruction=None, schema=None, response_mime_type=None):
 		if not user_prompt:
 			user_prompt = ""
@@ -150,10 +159,7 @@ class GeminiWrapper:
 					uploaded_file = self.__upload_to_gemini(file)
 					self.__wait_for_files_active([uploaded_file])
 
-				response = self.chat.send_message(
-					message=[user_prompt, uploaded_file] if uploaded_file else [user_prompt],
-					config=self.__get_config()
-				)
+				response = self.__send_message_with_timeout([user_prompt, uploaded_file] if uploaded_file else [user_prompt], self.__get_config())
 				result = response.text
 
 				model_responses.append(result)
