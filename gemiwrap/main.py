@@ -101,13 +101,15 @@ class GeminiWrapper:
 		)
 
 	def __send_message_with_timeout(self, user_prompt, config, timeout=300):
-		with concurrent.futures.ThreadPoolExecutor() as executor:
-			future = executor.submit(lambda: self.chat.send_message(user_prompt, config))
-			try:
-				return future.result(timeout=timeout)  # Wait for result with timeout
-			except concurrent.futures.TimeoutError:
-				logger_config.error("Request timed out")
-				return None
+		executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
+		future = executor.submit(lambda: self.chat.send_message(user_prompt, config))
+		try:
+			return future.result(timeout=timeout)
+		except concurrent.futures.TimeoutError:
+			logger_config.error("Request timed out")
+			# Not using context manager so we can shut down more aggressively
+			executor.shutdown(wait=False)
+			return None
 
 	def send_message(self, user_prompt="", file_path=None, system_instruction=None, schema=None, response_mime_type=None):
 		if not user_prompt:
