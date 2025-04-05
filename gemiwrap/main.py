@@ -60,9 +60,12 @@ class GeminiWrapper:
 		return file
 
 	def __delete_file_paths(self):
-		for file in self.client.files.list():
-			self.client.files.delete(name=file.name)
-			logger_config.success(f"Deleted file '{file.name}'")
+		try:
+			for file in self.client.files.list():
+				self.client.files.delete(name=file.name)
+				logger_config.success(f"Deleted file '{file.name}'")
+		except:
+			pass
 
 	def __wait_for_files_active(self, files):
 		logger_config.debug("Waiting for file processing...")
