@@ -1,9 +1,10 @@
-from .utils import video_duration
+from .utils import video_duration, optimize_image
 from custom_logger import logger_config
 import os
 import concurrent.futures
 from google import genai
 from google.genai import types
+import httpx
 
 class GeminiWrapper:
 
@@ -140,6 +141,9 @@ class GeminiWrapper:
 		model_responses = []
 		while True:
 			file = file_paths[index]
+			old_image = {
+				file:0
+			}
 			try:
 				if file and os.path.getsize(file) > (1024 * 1024 * 1024):
 					from . import compress_video
@@ -173,6 +177,14 @@ class GeminiWrapper:
 
 				if not file or index >= len(file_paths):
 					break
+
+			except httpx.ReadTimeout:
+				if file.endswith((".jpg", ".png", ".jpeg")) and old_image[file] == 0:
+					old_image[file] = 1
+					logger_config.warning("Optimising Image")
+					file = optimize_image(file)
+				else:
+					raise
 
 			except Exception as e:
 				if "RESOURCE_EXHAUSTED" in str(e):

@@ -9,7 +9,7 @@ geminiWrapper = GeminiWrapper(history=history)
 geminiWrapper.send_message("send me the exact previous user message that i sent to you.")
 
 geminiWrapper = GeminiWrapper(delete_files=True)
-geminiWrapper.send_message("Describe this image", file_path="tempOutput/P00010.jpg")
+geminiWrapper.send_message("Describe this image", file_path="tempOutput/037.png")
 
 geminiWrapper = GeminiWrapper(delete_files=True)
 geminiWrapper.send_message("Describe this Video", file_path="tempOutput/dragon_ball_z_-_001.mp4")

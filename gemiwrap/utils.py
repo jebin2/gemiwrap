@@ -20,3 +20,26 @@ def video_duration(file_path):
 	probe = ffmpeg.probe(file_path)
 	duration = int(float(probe['format']['duration'])) # seconds
 	return duration
+
+def optimize_image(input_path):
+    temp_dir = os.getenv("TEMP_OUTPUT", "tempOutput")
+    os.makedirs(temp_dir, exist_ok=True)
+    output_filename = f'{generate_random_string()}_optimize_image_{input_path.split(".")[-1]}'
+    output_path = os.path.join(temp_dir, output_filename)
+    from PIL import Image
+    image = Image.open(input_path)
+
+    # Convert RGBA to RGB if necessary
+    if image.mode == "RGBA":
+        image = image.convert("RGB")
+
+    # Remove EXIF metadata if present
+    if "exif" in image.info:
+        print("EXIF metadata found and removed.")
+        image.save(output_path, "JPEG", optimize=True, progressive=True)
+        import piexif
+        piexif.remove(output_path)
+    else:
+        image.save(output_path, "JPEG", optimize=True, progressive=True)
+
+    return output_path
