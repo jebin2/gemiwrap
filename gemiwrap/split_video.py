@@ -31,26 +31,25 @@ def split(video_path, parts=3):
         output_path = temp_dir / output_filename
         start_time = i * each_dur
 
-        if output_path.exists():
-            continue
+        if not output_path.exists():
+            stream = ffmpeg.input(str(video_path), ss=start_time)
+            output_args = {
+                'acodec': output_acodec,
+                'vcodec': output_vcodec,
+                'crf': output_crf,
+                'preset': output_preset,
+                'map_metadata': -1,
+                'avoid_negative_ts': 'make_zero'
+            }
 
-        stream = ffmpeg.input(str(video_path), ss=start_time)
-        output_args = {
-            'acodec': output_acodec,
-            'vcodec': output_vcodec,
-            'crf': output_crf,
-            'preset': output_preset,
-            'map_metadata': -1,
-            'avoid_negative_ts': 'make_zero'
-        }
+            if i < parts - 1:
+                stream = ffmpeg.output(stream, str(output_path), t=each_dur, **output_args)
+            else:
+                stream = ffmpeg.output(stream, str(output_path), **output_args)
 
-        if i < parts - 1:
-            stream = ffmpeg.output(stream, str(output_path), t=each_dur, **output_args)
-        else:
-            stream = ffmpeg.output(stream, str(output_path), **output_args)
+            logger_config.info(f"Running FFmpeg for part {i+1}: Start={start_time:.2f}" + (f", Duration={each_dur:.2f}" if i < parts-1 else ", Duration=ToEnd"))
+            stream.run()
 
-        logger_config.info(f"Running FFmpeg for part {i+1}: Start={start_time:.2f}" + (f", Duration={each_dur:.2f}" if i < parts-1 else ", Duration=ToEnd"))
-        stream.run()
         logger_config.success(f'Successfully created Part {i + 1} :: {output_path}')
         all_files.append(output_path)
 
