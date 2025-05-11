@@ -142,11 +142,11 @@ class GeminiWrapper:
 				file_paths = split_video.split(file_path, parts=split_count)
 
 		index = 0
+		unavaiable_retry_done = False
 		model_responses = []
 		while True:
 			file = file_paths[index]
 			try:
-
 				if file and os.path.getsize(file) > (1024 * 1024 * 1024):
 					from . import compress_video
 					file = compress_video.compress_video(
@@ -181,9 +181,13 @@ class GeminiWrapper:
 					break
 
 			except Exception as e:
-				if "RESOURCE_EXHAUSTED" in str(e):
+				error_message = str(e)
+				if "RESOURCE_EXHAUSTED" in error_message:
 					logger_config.warning("Quota exceeded, switching API key...")
 					self.__initialize_api()
+				elif not unavaiable_retry_done and "503 UNAVAILABLE" in error_message:
+					unavaiable_retry_done = True
+					logger_config.warning("Service unavailable, waiting for 50 seconds before retrying...", seconds=50)
 				else:
 					raise
 
