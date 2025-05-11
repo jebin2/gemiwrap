@@ -1,4 +1,4 @@
-from .utils import video_duration, optimize_image
+from .utils import video_duration, compress_image, compress_video as compress_video_util
 from custom_logger import logger_config
 import os
 import concurrent.futures
@@ -132,6 +132,10 @@ class GeminiWrapper:
 			self.response_mime_type=response_mime_type
 
 		if file_path:
+			if file_path.endswith((".jpg", ".png", ".jpeg")):
+				file_path = compress_image(file_path)
+			else:
+				file_path = compress_video_util(file_path)
 			split_count = self.__validate_video_tokens(file_path)
 			if split_count > -1:
 				from . import split_video
@@ -141,10 +145,8 @@ class GeminiWrapper:
 		model_responses = []
 		while True:
 			file = file_paths[index]
-			old_image = {
-				file:0
-			}
 			try:
+
 				if file and os.path.getsize(file) > (1024 * 1024 * 1024):
 					from . import compress_video
 					file = compress_video.compress_video(
@@ -177,14 +179,6 @@ class GeminiWrapper:
 
 				if not file or index >= len(file_paths):
 					break
-
-			except httpx.ReadTimeout:
-				if file.endswith((".jpg", ".png", ".jpeg")) and old_image[file] == 0:
-					old_image[file] = 1
-					logger_config.warning("Optimising Image")
-					file = optimize_image(file)
-				else:
-					raise
 
 			except Exception as e:
 				if "RESOURCE_EXHAUSTED" in str(e):
