@@ -185,7 +185,7 @@ class GeminiWrapper:
 				if "RESOURCE_EXHAUSTED" in error_message:
 					logger_config.warning("Quota exceeded, switching API key...")
 					self.__initialize_api()
-				elif not unavaiable_retry_done and "503 UNAVAILABLE" in error_message:
+				elif not unavaiable_retry_done:
 					unavaiable_retry_done = True
 					logger_config.warning("Service unavailable, waiting for 50 seconds before retrying...", seconds=50)
 				else:
