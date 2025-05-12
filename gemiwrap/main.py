@@ -172,10 +172,13 @@ class GeminiWrapper:
 
 				response = self.__send_message_with_timeout([user_prompt, uploaded_file] if uploaded_file else [user_prompt], self.__get_config())
 				result = response.text
+				if result is None:
+					raise ValueError("None returned.")
 
 				model_responses.append(result)
 				logger_config.debug(f"Google AI studio response: {result}")
 				index += 1
+				unavaiable_retry_done = False
 
 				if not file or index >= len(file_paths):
 					break
