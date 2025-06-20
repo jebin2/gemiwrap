@@ -8,7 +8,7 @@ import httpx
 
 class GeminiWrapper:
 
-	def __init__(self, model_name="gemini-2.0-flash", system_instruction=None, history=None, delete_files=False, tools=None, thinking_config=None, schema=None, response_mime_type="application/json"):
+	def __init__(self, model_name="gemini-2.5-flash", system_instruction=None, history=None, delete_files=False, tools=None, thinking_config=None, schema=None, response_mime_type="application/json"):
 		self._model_name = model_name
 		self.system_instruction = system_instruction
 		self.history = history or []
