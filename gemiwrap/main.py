@@ -4,7 +4,7 @@ import os
 import concurrent.futures
 from google import genai
 from google.genai import types
-import httpx
+import math
 
 class GeminiWrapper:
 
@@ -82,14 +82,19 @@ class GeminiWrapper:
 		logger_config.success("...all files ready")
 
 	def __validate_video_tokens(self, video_path):
-		split_count = -1
-		duration = video_duration(video_path) // 60
-		# 40 reason a 1M context window can fit slightly less than an hour of video
-		if duration > 40:
-			import math
-			split_count = math.ceil(duration / 40)
+		duration_minutes = video_duration(video_path) // 60
+		max_chunk = 40
 
-		return split_count
+		if duration_minutes <= max_chunk:
+			return -1  # no split needed
+
+		# Determine the smallest number of equal chunks not exceeding max_chunk
+		for parts in range(2, duration_minutes + 1):
+			chunk_size = math.ceil(duration_minutes / parts)
+			if chunk_size <= max_chunk:
+				return parts  # number of parts to split into
+
+		return -1  # fallback
 
 	def __get_config(self):
 		return types.GenerateContentConfig(
@@ -163,6 +168,8 @@ class GeminiWrapper:
 
 				if len(file_paths) > 1:
 					user_prompt = f'{original_text} Part {index+1} of {len(file_paths)}'
+					if len(model_responses) > 0:
+						user_prompt += f'\nprevious output: {model_responses[-1]}'
 
 				logger_config.debug(f"user_prompt: {user_prompt}")
 				uploaded_file = None
