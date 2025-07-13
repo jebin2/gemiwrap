@@ -6,11 +6,11 @@ from .utils import video_duration, validate_video_tokens
 
 
 def split(video_path):
-    logger_config.info(f"Attempting to split video: {video_path} into {parts} parts.")
     parts = validate_video_tokens(video_path)
     if parts == -1:
         return [video_path]
 
+    logger_config.info(f"Attempting to split video: {video_path} into {parts} parts.")
     path = Path(video_path)
     name = path.stem
     ext = path.suffix
