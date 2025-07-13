@@ -6,6 +6,7 @@ import mimetypes
 import subprocess
 from pathlib import Path
 from custom_logger import logger_config
+import math
 
 def generate_random_string(length=10):
     characters = string.ascii_letters
@@ -94,3 +95,18 @@ def compress_video(input_path, output_path=None, crf=23, resolution="640x360", f
             return input_path
 
     return output_path
+
+def validate_video_tokens(video_path):
+    duration_minutes = video_duration(video_path) // 60
+    max_chunk = 40
+
+    if duration_minutes <= max_chunk:
+        return -1  # no split needed
+
+    # Determine the smallest number of equal chunks not exceeding max_chunk
+    for parts in range(2, duration_minutes + 1):
+        chunk_size = math.ceil(duration_minutes / parts)
+        if chunk_size <= max_chunk:
+            return parts  # number of parts to split into
+
+    return -1  # fallback

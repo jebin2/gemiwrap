@@ -1,10 +1,9 @@
-from .utils import video_duration, compress_image, compress_video as compress_video_util
+from .utils import compress_image, compress_video
 from custom_logger import logger_config
 import os
 import concurrent.futures
 from google import genai
 from google.genai import types
-import math
 
 class GeminiWrapper:
 
@@ -81,21 +80,6 @@ class GeminiWrapper:
 
 		logger_config.success("...all files ready")
 
-	def __validate_video_tokens(self, video_path):
-		duration_minutes = video_duration(video_path) // 60
-		max_chunk = 40
-
-		if duration_minutes <= max_chunk:
-			return -1  # no split needed
-
-		# Determine the smallest number of equal chunks not exceeding max_chunk
-		for parts in range(2, duration_minutes + 1):
-			chunk_size = math.ceil(duration_minutes / parts)
-			if chunk_size <= max_chunk:
-				return parts  # number of parts to split into
-
-		return -1  # fallback
-
 	def __get_config(self):
 		return types.GenerateContentConfig(
 			system_instruction=self.system_instruction,
@@ -140,11 +124,9 @@ class GeminiWrapper:
 			if file_path.endswith((".jpg", ".png", ".jpeg")):
 				file_path = compress_image(file_path)
 			else:
-				file_path = compress_video_util(file_path)
-			split_count = self.__validate_video_tokens(file_path)
-			if split_count > -1:
+				file_path = compress_video(file_path)
 				from . import split_video
-				file_paths = split_video.split(file_path, parts=split_count)
+				file_paths = split_video.split(file_path)
 
 		index = 0
 		unavaiable_retry_done = False
@@ -152,14 +134,6 @@ class GeminiWrapper:
 		while True:
 			file = file_paths[index]
 			try:
-				if file and os.path.getsize(file) > (1024 * 1024 * 1024):
-					from . import compress_video
-					file = compress_video.compress_video(
-						file,
-						target_size_mb=500,
-						height=720
-					)
-
 				if not self.chat or len(file_paths) > 1:
 					logger_config.info("Starting a new chat session.")
 					self.__initialize_api()

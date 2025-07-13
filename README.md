@@ -40,9 +40,9 @@ gemini.send_message("Analyze this video", file_path="path/to/video.mp4")
 
 ### Video Compression
 ```python
-from gemiwrap.compress_video import compress_video
+from gemiwrap.utils.compress_video import compress_video
 
-compressed_path = compress_video("input.mp4", target_size_mb=400, height=480)
+compressed_path = compress_video("input.mp4")
 ```
 
 ### Video Splitting
