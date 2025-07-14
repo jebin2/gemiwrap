@@ -25,6 +25,119 @@ def video_duration(file_path):
 	duration = int(float(probe['format']['duration'])) # seconds
 	return duration
 
+def split_video(video_path):
+    """
+    Split a video file into multiple parts based on token validation.
+    
+    Args:
+        video_path: Path to the input video file
+        
+    Returns:
+        List of paths to successfully created video parts
+    """
+    parts = validate_video_tokens(video_path)
+    if parts == -1:
+        return [video_path]
+
+    logger_config.info(f"Attempting to split video: {video_path} into {parts} parts.")
+    
+    path = Path(video_path)
+    name = path.stem
+    ext = path.suffix
+    all_files = []
+    temp_dir = Path(os.getenv("TEMP_OUTPUT", "tempOutput")) / name
+    temp_dir.mkdir(parents=True, exist_ok=True)
+
+    # Get video duration with validation
+    duration = video_duration(video_path)
+    if duration is None or duration <= 0:
+        logger_config.error("Could not determine video duration or duration is zero.")
+        return []
+    
+    # Calculate segment duration
+    each_dur = duration / parts
+    logger_config.info(f"Total duration: {duration}s. Each part approx: {each_dur:.2f}s")
+
+    # Optimized encoding settings
+    output_vcodec = 'libx264'
+    output_crf = 22
+    output_preset = 'medium'
+    output_acodec = 'copy'
+    
+    # Track temporary files for cleanup
+    temp_files = []
+    
+    for i in range(parts):
+        output_filename = f"{name}_split_video_{i + 1}{ext}"
+        output_path = temp_dir / output_filename
+        start_time = i * each_dur
+
+        tmp_output_path = output_path.with_suffix(output_path.suffix + ".tmp")
+        temp_files.append(tmp_output_path)
+
+        # Clean up old temp files if any
+        if tmp_output_path.exists():
+            tmp_output_path.unlink()
+
+        # Skip if final file already exists
+        if output_path.exists():
+            logger_config.info(f"Part {i+1} already exists, skipping: {output_path}")
+            all_files.append(output_path)
+            continue
+
+        # Create input stream with start time
+        stream = ffmpeg.input(str(video_path), ss=start_time)
+        
+        # Base output arguments
+        output_args = {
+            'acodec': output_acodec,
+            'vcodec': output_vcodec,
+            'crf': output_crf,
+            'preset': output_preset,
+            'map_metadata': -1,
+            'avoid_negative_ts': 'make_zero',
+            'movflags': '+faststart'
+        }
+
+        # Calculate precise duration for each segment
+        if i < parts - 1:
+            # For all parts except the last, use calculated duration
+            segment_duration = each_dur
+            stream = ffmpeg.output(stream, str(tmp_output_path), t=segment_duration, **output_args)
+            duration_info = f", Duration={segment_duration:.2f}s"
+        else:
+            # For the last part, calculate remaining duration
+            remaining_duration = duration - (i * each_dur)
+            stream = ffmpeg.output(stream, str(tmp_output_path), t=remaining_duration, **output_args)
+            duration_info = f", Duration={remaining_duration:.2f}s (remaining)"
+
+        logger_config.info(f"Processing part {i+1}: Start={start_time:.2f}s{duration_info}")
+
+        # Run FFmpeg - let it raise exceptions naturally if it fails
+        ffmpeg.run(stream, capture_stdout=True, capture_stderr=True, overwrite_output=True)
+        
+        # Verify the output file was created and has reasonable size
+        if not tmp_output_path.exists() or tmp_output_path.stat().st_size == 0:
+            raise ValueError("Split not happened properply")
+        
+        # Rename tmp file to final only if success
+        tmp_output_path.rename(output_path)
+        logger_config.success(f'Successfully created Part {i + 1} :: {output_path}')
+        all_files.append(output_path)
+
+    # Clean up any remaining temporary files
+    for temp_file in temp_files:
+        if temp_file.exists():
+            temp_file.unlink()
+
+    # Final status report
+    if len(all_files) == parts:
+        logger_config.success(f"Video split successfully into {parts} parts!")
+    else:
+        raise ValueError("All Split not happened properply")
+
+    return all_files
+
 def compress_image(input_path):
     logger_config.info("Compressing Image")
     temp_dir = os.getenv("TEMP_OUTPUT", "tempOutput")
@@ -49,7 +162,7 @@ def compress_image(input_path):
 
     return output_path
 
-def compress_video(input_path, output_path=None, crf=23, resolution="640x360", fps=10, audio_bitrate="64k", preset="medium"):
+def compress_video(input_path, output_path=None, crf=23, resolution="640x360", fps=10, audio_bitrate="64k", preset="medium", force_mp4=True):
     """
     Compress a video optimized for LLM processing.
 
@@ -61,40 +174,84 @@ def compress_video(input_path, output_path=None, crf=23, resolution="640x360", f
     - fps: Frames per second (default: 10, sufficient for most content analysis)
     - audio_bitrate: Audio bitrate (default: 64k)
     - preset: FFmpeg preset (faster = less compression, slower = more compression)
+    - force_mp4: Force MP4 output format (recommended for compatibility)
     
     Returns:
     - Path to the compressed video file
     """
     path = Path(input_path)
     name = path.stem
-    ext = path.suffix
+    original_ext = path.suffix
     temp_dir = Path(os.getenv("TEMP_OUTPUT", "tempOutput")) / name
     temp_dir.mkdir(parents=True, exist_ok=True)
-    output_path = str(temp_dir / f"{name}_compressed{ext}")
+    
+    if output_path is None:
+        # Choose output format
+        if force_mp4:
+            output_ext = ".mp4"
+        else:
+            output_ext = original_ext
+        output_path = temp_dir / f"{name}_compressed{output_ext}"
+    else:
+        output_path = Path(output_path)
 
-    if not Path(output_path).exists():
-        # Build FFmpeg command
-        cmd = [
-            "ffmpeg", "-i", input_path,
-            "-c:v", "libx264",           # H.264 video codec
-            "-crf", str(crf),            # Quality setting
-            "-preset", preset,           # Compression preset
-            "-vf", f"scale={resolution}", # Resolution
-            "-r", str(fps),              # Frame rate
-            "-c:a", "aac",               # AAC audio codec
-            "-b:a", audio_bitrate,       # Audio bitrate
+    # Check if output already exists
+    if output_path.exists():
+        logger_config.info(f"Compressed file already exists: {output_path}")
+        return str(output_path)
+
+    # Setup temporary file
+    tmp_output_path = output_path.with_suffix(output_path.suffix + ".tmp")
+    if tmp_output_path.exists():
+        tmp_output_path.unlink()
+
+    # Determine output format and container-specific options
+    output_ext = output_path.suffix.lower()
+    
+    # Base command
+    cmd = [
+        "ffmpeg", "-i", str(input_path),
+        "-c:v", "libx264",           # H.264 video codec
+        "-crf", str(crf),            # Quality setting
+        "-preset", preset,           # Compression preset
+        "-vf", f"scale={resolution}", # Resolution
+        "-r", str(fps),              # Frame rate
+        "-c:a", "aac",               # AAC audio codec
+        "-b:a", audio_bitrate,       # Audio bitrate
+        "-avoid_negative_ts", "make_zero",  # Handle timing issues
+    ]
+    
+    # Add format-specific options
+    if output_ext in ['.mp4', '.m4v']:
+        cmd.extend([
             "-movflags", "+faststart",   # Optimize for web streaming
-            "-y",                        # Overwrite output file if it exists
-            output_path
-        ]
+            "-f", "mp4"
+        ])
+    elif output_ext in ['.mkv']:
+        cmd.extend([
+            "-f", "matroska"
+        ])
+    elif output_ext in ['.webm']:
+        cmd.extend([
+            "-f", "webm"
+        ])
+    
+    # Add output file and overwrite flag
+    cmd.extend(["-y", str(tmp_output_path)])
 
-        # Execute FFmpeg command
-        process = subprocess.run(cmd)
+    logger_config.info(f"Compressing video: {input_path} -> {output_path}")
+    logger_config.info(f"FFmpeg command: {' '.join(cmd)}")
 
-        if process.returncode != 0:
-            return input_path
+    # Execute FFmpeg command
+    process = subprocess.run(cmd)
 
-    return output_path
+    if process.returncode == 0:
+        # Rename tmp file to final output
+        tmp_output_path.rename(output_path)
+    else:
+        raise ValueError("Compression failed")
+
+    return str(output_path)
 
 def validate_video_tokens(video_path):
     duration_minutes = video_duration(video_path) // 60

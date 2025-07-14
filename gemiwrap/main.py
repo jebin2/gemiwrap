@@ -1,4 +1,4 @@
-from .utils import compress_image, compress_video
+from .utils import compress_image, compress_video, split_video
 from custom_logger import logger_config
 import os
 import concurrent.futures
@@ -125,8 +125,7 @@ class GeminiWrapper:
 				file_path = compress_image(file_path)
 			else:
 				file_path = compress_video(file_path)
-				from . import split_video
-				file_paths = split_video.split(file_path)
+				file_paths = split_video(file_path)
 
 		index = 0
 		unavaiable_retry_done = False
