@@ -62,13 +62,13 @@ def split_video(video_path):
     output_vcodec = 'libx264'
     output_crf = 22
     output_preset = 'medium'
-    output_acodec = 'copy'
+    output_acodec = 'aac'  # Changed from 'copy' to 'aac' for better compatibility
     
     # Track temporary files for cleanup
     temp_files = []
     
     for i in range(parts):
-        output_filename = f"{name}_split_video_{i + 1}{ext}"
+        output_filename = f"{name}_split_video_{i + 1}.mp4"  # Force MP4 extension
         output_path = temp_dir / output_filename
         start_time = i * each_dur
 
@@ -96,6 +96,7 @@ def split_video(video_path):
             'preset': output_preset,
             'map_metadata': -1,
             'avoid_negative_ts': 'make_zero',
+            'f': 'mp4',  # Force MP4 format
             'movflags': '+faststart'
         }
 
@@ -118,7 +119,8 @@ def split_video(video_path):
         
         # Verify the output file was created and has reasonable size
         if not tmp_output_path.exists() or tmp_output_path.stat().st_size == 0:
-            raise ValueError("Split not happened properply")
+            logger_config.error(f"Output file not created or empty: {tmp_output_path}")
+            raise ValueError("Split not happened properly")
         
         # Rename tmp file to final only if success
         tmp_output_path.rename(output_path)
@@ -134,7 +136,7 @@ def split_video(video_path):
     if len(all_files) == parts:
         logger_config.success(f"Video split successfully into {parts} parts!")
     else:
-        raise ValueError("All Split not happened properply")
+        raise ValueError("All splits not completed properly")
 
     return all_files
 
