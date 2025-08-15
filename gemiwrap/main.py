@@ -104,7 +104,7 @@ class GeminiWrapper:
 			executor.shutdown(wait=False)
 			return None
 
-	def send_message(self, user_prompt="", file_path=None, system_instruction=None, schema=None, response_mime_type=None):
+	def send_message(self, user_prompt="", file_path=None, system_instruction=None, schema=None, response_mime_type=None, compress=True):
 		if not user_prompt:
 			user_prompt = ""
 
@@ -120,7 +120,7 @@ class GeminiWrapper:
 		if response_mime_type:
 			self.response_mime_type=response_mime_type
 
-		if file_path:
+		if file_path and compress:
 			if file_path.endswith((".jpg", ".png", ".jpeg")):
 				file_path = compress_image(file_path)
 			else:
