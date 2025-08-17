@@ -27,17 +27,20 @@ def video_duration(file_path):
 
 def split_video(video_path):
     """
-    Split a video file into multiple parts based on token validation.
+    Split a video file into multiple parts based on token validation, using fast subclip extraction.
     
     Args:
         video_path: Path to the input video file
         
     Returns:
-        List of paths to successfully created video parts
+        Tuple[List[Path], List[Tuple[float, float]]]:
+            - List of paths to successfully created video parts
+            - List of (start_sec, end_sec) ranges
     """
     parts = validate_video_tokens(video_path)
     if parts == -1:
-        return [video_path]
+        duration = video_duration(video_path)
+        return [video_path], [(0, duration if duration else None)]
 
     logger_config.info(f"Attempting to split video: {video_path} into {parts} parts.")
     
@@ -45,100 +48,50 @@ def split_video(video_path):
     name = path.stem
     ext = path.suffix
     all_files = []
+    time_ranges = []
     temp_dir = Path(os.getenv("TEMP_OUTPUT", "tempOutput")) / name
     temp_dir.mkdir(parents=True, exist_ok=True)
 
-    # Get video duration with validation
     duration = video_duration(video_path)
     if duration is None or duration <= 0:
         logger_config.error("Could not determine video duration or duration is zero.")
-        return []
-    
-    # Calculate segment duration
+        return [], []
+
     each_dur = duration / parts
     logger_config.info(f"Total duration: {duration}s. Each part approx: {each_dur:.2f}s")
 
-    # Optimized encoding settings
-    output_vcodec = 'libx264'
-    output_crf = 22
-    output_preset = 'medium'
-    output_acodec = 'aac'  # Changed from 'copy' to 'aac' for better compatibility
-    
-    # Track temporary files for cleanup
-    temp_files = []
-    
     for i in range(parts):
-        output_filename = f"{name}_split_video_{i + 1}.mp4"  # Force MP4 extension
+        start_sec = i * each_dur
+        end_sec = duration if i == parts - 1 else (i + 1) * each_dur
+
+        output_filename = f"{name}_{start_sec:.2f}_{end_sec:.2f}.mp4"
         output_path = temp_dir / output_filename
-        start_time = i * each_dur
 
-        tmp_output_path = output_path.with_suffix(output_path.suffix + ".tmp")
-        temp_files.append(tmp_output_path)
-
-        # Clean up old temp files if any
-        if tmp_output_path.exists():
-            tmp_output_path.unlink()
-
-        # Skip if final file already exists
+        # Skip if file already exists
         if output_path.exists():
             logger_config.info(f"Part {i+1} already exists, skipping: {output_path}")
             all_files.append(output_path)
+            time_ranges.append((start_sec, end_sec))
             continue
 
-        # Create input stream with start time
-        stream = ffmpeg.input(str(video_path), ss=start_time)
-        
-        # Base output arguments
-        output_args = {
-            'acodec': output_acodec,
-            'vcodec': output_vcodec,
-            'crf': output_crf,
-            'preset': output_preset,
-            'map_metadata': -1,
-            'avoid_negative_ts': 'make_zero',
-            'f': 'mp4',  # Force MP4 format
-            'movflags': '+faststart'
-        }
+        # Build ffmpeg command for fast subclip (no re-encoding)
+        cmd = []
+        if start_sec:
+            cmd += ["-ss", str(start_sec)]
+        cmd += ["-i", str(video_path)]
+        if end_sec:
+            cmd += ["-to", str(end_sec)]
+        cmd += ["-c", "copy", str(output_path)]
 
-        # Calculate precise duration for each segment
-        if i < parts - 1:
-            # For all parts except the last, use calculated duration
-            segment_duration = each_dur
-            stream = ffmpeg.output(stream, str(tmp_output_path), t=segment_duration, **output_args)
-            duration_info = f", Duration={segment_duration:.2f}s"
-        else:
-            # For the last part, calculate remaining duration
-            remaining_duration = duration - (i * each_dur)
-            stream = ffmpeg.output(stream, str(tmp_output_path), t=remaining_duration, **output_args)
-            duration_info = f", Duration={remaining_duration:.2f}s (remaining)"
+        # Run ffmpeg
+        subprocess.run(["ffmpeg"] + cmd, check=True)
+        logger_config.success(f"Successfully created Part {i+1} :: {output_path}")
 
-        logger_config.info(f"Processing part {i+1}: Start={start_time:.2f}s{duration_info}")
-
-        # Run FFmpeg - let it raise exceptions naturally if it fails
-        ffmpeg.run(stream, capture_stdout=True, capture_stderr=True, overwrite_output=True)
-        
-        # Verify the output file was created and has reasonable size
-        if not tmp_output_path.exists() or tmp_output_path.stat().st_size == 0:
-            logger_config.error(f"Output file not created or empty: {tmp_output_path}")
-            raise ValueError("Split not happened properly")
-        
-        # Rename tmp file to final only if success
-        tmp_output_path.rename(output_path)
-        logger_config.success(f'Successfully created Part {i + 1} :: {output_path}')
         all_files.append(output_path)
+        time_ranges.append((start_sec, end_sec))
 
-    # Clean up any remaining temporary files
-    for temp_file in temp_files:
-        if temp_file.exists():
-            temp_file.unlink()
+    return all_files, time_ranges
 
-    # Final status report
-    if len(all_files) == parts:
-        logger_config.success(f"Video split successfully into {parts} parts!")
-    else:
-        raise ValueError("All splits not completed properly")
-
-    return all_files
 
 def compress_image(input_path):
     logger_config.info("Compressing Image")
