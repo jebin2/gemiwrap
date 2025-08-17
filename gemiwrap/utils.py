@@ -164,96 +164,103 @@ def compress_image(input_path):
 
     return output_path
 
-def compress_video(input_path, output_path=None, crf=23, resolution="640x360", fps=10, audio_bitrate="64k", preset="medium", force_mp4=True):
+def compress_video(input_path, output_path=None):
     """
-    Compress a video optimized for LLM processing.
-
+    Simple, optimized video compression specifically for Google Gemini Pro.
+    No complex settings - just compress any video to work perfectly with Gemini Pro.
+    
+    Optimizations for Gemini Pro:
+    - 2 FPS (perfect for LLM frame analysis)
+    - 480x270 resolution (readable but compact)
+    - Aggressive compression while maintaining visual clarity
+    - Always produces small files suitable for LLM processing
+    
     Parameters:
-    - input_path: Path to the input video file
-    - output_path: Path for the output file (default: input filename + "_compressed.mp4")
-    - crf: Constant Rate Factor (18-28 recommended, 23 is default, lower = better quality)
-    - resolution: Output resolution (default: 640x360)
-    - fps: Frames per second (default: 10, sufficient for most content analysis)
-    - audio_bitrate: Audio bitrate (default: 64k)
-    - preset: FFmpeg preset (faster = less compression, slower = more compression)
-    - force_mp4: Force MP4 output format (recommended for compatibility)
+    - input_path: Path to input video file
+    - output_path: Optional output path (auto-generated if None)
     
     Returns:
-    - Path to the compressed video file
+    - Path to compressed video file
     """
+    
     path = Path(input_path)
     name = path.stem
-    original_ext = path.suffix
+    
+    # Create output directory
     temp_dir = Path(os.getenv("TEMP_OUTPUT", "tempOutput")) / name
     temp_dir.mkdir(parents=True, exist_ok=True)
     
     if output_path is None:
-        # Choose output format
-        if force_mp4:
-            output_ext = ".mp4"
-        else:
-            output_ext = original_ext
-        output_path = temp_dir / f"{name}_compressed{output_ext}"
+        output_path = temp_dir / f"{name}_compressed.mp4"
     else:
         output_path = Path(output_path)
-
-    # Check if output already exists
-    if output_path.exists():
-        logger_config.info(f"Compressed file already exists: {output_path}")
-        return str(output_path)
-
-    # Setup temporary file
-    tmp_output_path = output_path.with_suffix(output_path.suffix + ".tmp")
-    if tmp_output_path.exists():
-        tmp_output_path.unlink()
-
-    # Determine output format and container-specific options
-    output_ext = output_path.suffix.lower()
     
-    # Base command
+    # Skip if already processed
+    if output_path.exists():
+        existing_size = os.path.getsize(output_path) / (1024 * 1024)
+        print(f"Already compressed: {existing_size:.1f}MB")
+        return str(output_path)
+    
+    # Get input file size
+    input_size_mb = os.path.getsize(input_path) / (1024 * 1024)
+    
+    # Temporary output file
+    tmp_output = output_path.with_suffix(".tmp.mp4")
+    if tmp_output.exists():
+        tmp_output.unlink()
+    
+    print(f"Compressing for Gemini Pro: {input_size_mb:.1f}MB → optimized")
+    
+    # Gemini Pro optimized FFmpeg command
     cmd = [
         "ffmpeg", "-i", str(input_path),
-        "-c:v", "libx264",           # H.264 video codec
-        "-crf", str(crf),            # Quality setting
-        "-preset", preset,           # Compression preset
-        "-vf", f"scale={resolution}", # Resolution
-        "-r", str(fps),              # Frame rate
-        "-c:a", "aac",               # AAC audio codec
-        "-b:a", audio_bitrate,       # Audio bitrate
-        "-avoid_negative_ts", "make_zero",  # Handle timing issues
+        
+        # Video: H.264 with aggressive but readable compression
+        "-c:v", "libx264",
+        "-crf", "32",                    # Aggressive compression, still readable
+        "-preset", "veryslow",           # Best compression efficiency
+        
+        # Resolution and frame rate optimized for Gemini Pro
+        "-vf", "scale=480:270:force_original_aspect_ratio=decrease:force_divisible_by=2,fps=2",
+        
+        # Audio: Minimal but present
+        "-c:a", "aac",
+        "-b:a", "24k",                   # Very low audio bitrate
+        "-ac", "1",                      # Mono
+        "-ar", "22050",                  # Lower sample rate
+        
+        # Optimize for small file size and streaming
+        "-movflags", "+faststart",
+        "-avoid_negative_ts", "make_zero",
+        
+        # Advanced compression settings
+        "-x264-params", "keyint=120:scenecut=40:b-adapt=2:me=hex:subme=6:ref=3",
+        
+        "-f", "mp4",
+        "-y", str(tmp_output)
     ]
     
-    # Add format-specific options
-    if output_ext in ['.mp4', '.m4v']:
-        cmd.extend([
-            "-movflags", "+faststart",   # Optimize for web streaming
-            "-f", "mp4"
-        ])
-    elif output_ext in ['.mkv']:
-        cmd.extend([
-            "-f", "matroska"
-        ])
-    elif output_ext in ['.webm']:
-        cmd.extend([
-            "-f", "webm"
-        ])
+    # Execute compression
+    process = subprocess.run(cmd, text=True)
     
-    # Add output file and overwrite flag
-    cmd.extend(["-y", str(tmp_output_path)])
-
-    logger_config.info(f"Compressing video: {input_path} -> {output_path}")
-    logger_config.info(f"FFmpeg command: {' '.join(cmd)}")
-
-    # Execute FFmpeg command
-    process = subprocess.run(cmd)
-
     if process.returncode == 0:
-        # Rename tmp file to final output
-        tmp_output_path.rename(output_path)
+        # Move to final location
+        tmp_output.rename(output_path)
+        
+        # Show results
+        output_size_mb = os.path.getsize(output_path) / (1024 * 1024)
+        compression_ratio = input_size_mb / output_size_mb if output_size_mb > 0 else 0
+        savings_percent = ((input_size_mb - output_size_mb) / input_size_mb * 100) if input_size_mb > 0 else 0
+        
+        print(f"✅ Gemini Pro ready: {output_size_mb:.1f}MB ({compression_ratio:.1f}x smaller, {savings_percent:.1f}% saved)")
+        
+        return str(output_path)
     else:
+        # Clean up on failure
+        if tmp_output.exists():
+            tmp_output.unlink()
+        print(f"❌ Compression failed: {process.stderr}")
         raise ValueError("Compression failed")
-
-    return str(output_path)
 
 def validate_video_tokens(video_path):
     duration_minutes = video_duration(video_path) // 60
