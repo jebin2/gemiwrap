@@ -57,7 +57,7 @@ def split_video(video_path):
         logger_config.error("Could not determine video duration or duration is zero.")
         return [], []
 
-    each_dur = duration / parts
+    each_dur = int(duration / parts)
     logger_config.info(f"Total duration: {duration}s. Each part approx: {each_dur:.2f}s")
 
     for i in range(parts):
@@ -75,16 +75,30 @@ def split_video(video_path):
             continue
 
         # Build ffmpeg command for fast subclip (no re-encoding)
-        cmd = []
-        if start_sec:
-            cmd += ["-ss", str(start_sec)]
+        cmd = ["ffmpeg", "-y"]  # -y to overwrite existing files
+
+        # CRITICAL FIX: Put -ss BEFORE -i for accurate seeking
+        if start_sec > 0:
+            cmd += ["-ss", f"{start_sec:.3f}"]
+        
+        # Input file first
         cmd += ["-i", str(video_path)]
-        if end_sec:
-            cmd += ["-to", str(end_sec)]
-        cmd += ["-c", "copy", str(output_path)]
+        
+        # Duration instead of end time for more reliable results
+        duration_part = end_sec - start_sec
+        cmd += ["-t", f"{duration_part}"]
+        
+        # Copy streams without re-encoding for speed
+        cmd += ["-c", "copy"]
+        
+        # Avoid negative timestamps and other issues
+        cmd += ["-avoid_negative_ts", "make_zero"]
+        
+        # Output file
+        cmd += [str(output_path)]
 
         # Run ffmpeg
-        subprocess.run(["ffmpeg"] + cmd, check=True)
+        subprocess.run(cmd, check=True)
         logger_config.success(f"Successfully created Part {i+1} :: {output_path}")
 
         all_files.append(output_path)
