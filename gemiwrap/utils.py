@@ -106,12 +106,12 @@ def split_video(video_path):
 
     return all_files, time_ranges
 
-
 def compress_image(input_path):
     logger_config.info("Compressing Image")
     temp_dir = os.getenv("TEMP_OUTPUT", "tempOutput")
     os.makedirs(temp_dir, exist_ok=True)
-    output_filename = f'{generate_random_string()}_compress_image_{input_path.split(".")[-1]}'
+    name, ext = os.path.splitext(os.path.basename(input_path))
+    output_filename = f'{generate_random_string()}_compress_image_{name}{ext}'
     output_path = os.path.join(temp_dir, output_filename)
     from PIL import Image
     image = Image.open(input_path)
