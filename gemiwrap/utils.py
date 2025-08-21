@@ -58,13 +58,13 @@ def split_video(video_path):
         return [], []
 
     each_dur = int(duration / parts)
-    logger_config.info(f"Total duration: {duration}s. Each part approx: {each_dur:.2f}s")
+    logger_config.info(f"Total duration: {duration}s. Each part approx: {each_dur}s")
 
     for i in range(parts):
-        start_sec = i * each_dur
-        end_sec = duration if i == parts - 1 else (i + 1) * each_dur
+        start_sec = int(i * each_dur)
+        end_sec = int(duration if i == parts - 1 else (i + 1) * each_dur)
 
-        output_filename = f"{name}_{start_sec:.2f}_{end_sec:.2f}.mp4"
+        output_filename = f"{name}_{start_sec}_{end_sec}.mp4"
         output_path = temp_dir / output_filename
 
         # Skip if file already exists
@@ -79,7 +79,7 @@ def split_video(video_path):
 
         # CRITICAL FIX: Put -ss BEFORE -i for accurate seeking
         if start_sec > 0:
-            cmd += ["-ss", f"{start_sec:.3f}"]
+            cmd += ["-ss", f"{start_sec}"]
         
         # Input file first
         cmd += ["-i", str(video_path)]
