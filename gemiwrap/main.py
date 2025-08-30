@@ -55,6 +55,7 @@ class GeminiWrapper:
 		self.used_keys.add(self.current_key)
 
 	def __upload_to_gemini(self, path):
+		logger_config.debug(f"Uploading file '{path}'")
 		file = self.client.files.upload(file=str(path))
 		logger_config.debug(f"Uploaded file '{file.display_name}' as: {file.uri}")
 		return file
@@ -122,10 +123,11 @@ class GeminiWrapper:
 
 		if file_path and compress:
 			if file_path.endswith((".jpg", ".png", ".jpeg")):
-				file_path = compress_image(file_path)
+				file_paths = [str(compress_image(file_path))]
 			else:
 				file_path = compress_video(file_path)
-				file_paths = split_video(file_path)
+				file_paths, _ = split_video(file_path)
+				file_paths = [str(p) for p in file_paths] 
 
 		index = 0
 		unavaiable_retry_done = False
