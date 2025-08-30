@@ -55,7 +55,7 @@ class GeminiWrapper:
 		self.used_keys.add(self.current_key)
 
 	def __upload_to_gemini(self, path):
-		file = self.client.files.upload(file=path)
+		file = self.client.files.upload(file=str(path))
 		logger_config.debug(f"Uploaded file '{file.display_name}' as: {file.uri}")
 		return file
 
