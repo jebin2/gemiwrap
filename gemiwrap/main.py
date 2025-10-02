@@ -124,10 +124,12 @@ class GeminiWrapper:
 		if file_path and compress:
 			if file_path.endswith((".jpg", ".png", ".jpeg")):
 				file_paths = [str(compress_image(file_path))]
-			else:
+			elif file_path.endswith((".mp4", ".mkv", ".avi", ".mov")):
 				file_path = compress_video(file_path)
 				file_paths, _ = split_video(file_path)
-				file_paths = [str(p) for p in file_paths] 
+				file_paths = [str(p) for p in file_paths]
+			else:
+				file_paths = [file_path]
 
 		index = 0
 		unavaiable_retry_done = False
