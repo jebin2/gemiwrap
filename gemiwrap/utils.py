@@ -49,7 +49,7 @@ def split_video(video_path):
     ext = path.suffix
     all_files = []
     time_ranges = []
-    temp_dir = Path(os.getenv("TEMP_OUTPUT", "tempOutput")) / name
+    temp_dir = Path(os.getenv("TEMP_OUTPUT", "reuse")) / name
     temp_dir.mkdir(parents=True, exist_ok=True)
 
     duration = video_duration(video_path)
@@ -97,6 +97,8 @@ def split_video(video_path):
         # Output file
         cmd += [str(output_path)]
 
+        logger_config.success(f"Command to run: {cmd}")
+
         # Run ffmpeg
         subprocess.run(cmd, check=True)
         logger_config.success(f"Successfully created Part {i+1} :: {output_path}")
@@ -108,7 +110,7 @@ def split_video(video_path):
 
 def compress_image(input_path):
     logger_config.info("Compressing Image")
-    temp_dir = os.getenv("TEMP_OUTPUT", "tempOutput")
+    temp_dir = os.getenv("TEMP_OUTPUT", "reuse")
     os.makedirs(temp_dir, exist_ok=True)
     name, ext = os.path.splitext(os.path.basename(input_path))
     output_filename = f'{generate_random_string()}_compress_image_{name}{ext}'
@@ -154,7 +156,7 @@ def compress_video(input_path, output_path=None):
     name = path.stem
     
     # Create output directory
-    temp_dir = Path(os.getenv("TEMP_OUTPUT", "tempOutput")) / name
+    temp_dir = Path(os.getenv("TEMP_OUTPUT", "reuse")) / name
     temp_dir.mkdir(parents=True, exist_ok=True)
     
     if output_path is None:
